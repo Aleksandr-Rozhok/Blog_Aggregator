@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -66,10 +67,12 @@ func main() {
 		var userData models.User
 		if err := json.Unmarshal(bodyBytes, &userData); err != nil {
 			fmt.Printf("Error unmarshalling body: %v\n", err)
+			return
 		}
 
 		if userData.Name == "" {
 			fmt.Errorf("Name can't be blank")
+			return
 		}
 
 		user, err := config.DB.CreateUser(ctx, database.CreateUserParams{
@@ -84,6 +87,20 @@ func main() {
 
 		tools.RespondWithJSON(w, http.StatusOK, user)
 	})
+	mux.HandleFunc("GET /v1/users", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		apiKey := r.Header.Get("Authorization")
+		if strings.HasPrefix(apiKey, "ApiKey ") {
+			apiKey = strings.TrimPrefix(apiKey, "ApiKey ")
+		}
+
+		user, err := config.DB.GetUserByAPIKey(ctx, apiKey)
+		if err != nil {
+			fmt.Printf("Error getting user: %v\n", err)
+			return
+		}
+		tools.RespondWithJSON(w, http.StatusOK, user)
+	})
 
 	err = http.ListenAndServe(server.Addr, server.Handler)
 	if err != nil {
@@ -91,5 +108,4 @@ func main() {
 	} else {
 		fmt.Println("Server is running")
 	}
-
 }
