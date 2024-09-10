@@ -89,6 +89,18 @@ func main() {
 	})
 	mux.Handle("GET /v1/users", config.MiddlewareAuth(config.HandlerUsersGet))
 	mux.Handle("POST /v1/feeds", config.MiddlewareAuth(config.HandlerFeedsPost))
+	mux.HandleFunc("GET /v1/feeds", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		feeds, err := config.DB.GetFeeds(ctx)
+		if err != nil {
+			fmt.Printf("Error getting feeds: %v\n", err)
+		}
+
+		fmt.Println(feeds)
+
+		tools.RespondWithJSON(w, http.StatusOK, feeds)
+	})
 
 	err = http.ListenAndServe(server.Addr, server.Handler)
 	if err != nil {
