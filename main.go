@@ -2,6 +2,7 @@ package main
 
 import (
 	"blog_aggregator/internal/database"
+	"blog_aggregator/internal/middleware"
 	"blog_aggregator/models"
 	"blog_aggregator/tools"
 	"database/sql"
@@ -14,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -35,7 +35,7 @@ func main() {
 		Handler: mux,
 	}
 
-	config := models.ApiConfig{
+	config := middleware.ApiConfig{
 		DB: dbQueries,
 	}
 
@@ -87,20 +87,8 @@ func main() {
 
 		tools.RespondWithJSON(w, http.StatusOK, user)
 	})
-	mux.HandleFunc("GET /v1/users", func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		apiKey := r.Header.Get("Authorization")
-		if strings.HasPrefix(apiKey, "ApiKey ") {
-			apiKey = strings.TrimPrefix(apiKey, "ApiKey ")
-		}
-
-		user, err := config.DB.GetUserByAPIKey(ctx, apiKey)
-		if err != nil {
-			fmt.Printf("Error getting user: %v\n", err)
-			return
-		}
-		tools.RespondWithJSON(w, http.StatusOK, user)
-	})
+	mux.Handle("GET /v1/users", config.MiddlewareAuth(config.HandlerUsersGet))
+	mux.Handle("POST /v1/feeds", config.MiddlewareAuth(config.HandlerFeedsPost))
 
 	err = http.ListenAndServe(server.Addr, server.Handler)
 	if err != nil {
